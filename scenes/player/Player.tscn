@@ -1,0 +1,26 @@
+[gd_scene load_steps=3 format=3 uid="uid://krsf0ydkh1a3"]
+
+[ext_resource type="Script" path="res://scripts/player/Player.gd" id="1_knq7e"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_fn8rs"]
+size = Vector3(0.2, 0.2, 0.2)
+
+[node name="Player" type="XROrigin3D"]
+script = ExtResource("1_knq7e")
+
+[node name="Camera" type="XRCamera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+
+[node name="LeftHand" type="XRController3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 1, -0.5)
+tracker = &"left_hand"
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="LeftHand"]
+mesh = SubResource("BoxMesh_fn8rs")
+
+[node name="RightHand" type="XRController3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 1, -0.5)
+tracker = &"right_hand"
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RightHand"]
+mesh = SubResource("BoxMesh_fn8rs")
