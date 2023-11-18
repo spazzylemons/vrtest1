@@ -39,15 +39,31 @@ var sitting := false
 @onready var left_hand: HandController = %LeftHand
 @onready var right_hand: HandController = %RightHand
 
+# Upper body tracking.
+@onready var head_target: Node3D = %HeadTarget
+
 # Fake lower body tracking.
 @onready var targets: Node3D = %Targets
 @onready var hips: Node3D = %Hips
 
-# Main IK controller.
+# IK controllers.
 @onready var renik: RenIK3D = %RenIK
+@onready var renik_foot: RenIKPlacement3D = %RenIKFootPlacement
+
+@onready var capsule: CollisionShape3D = %Collision
+
+# Avatar node.
+var avatar: Node3D = null
+
+var ik_enabled := false:
+	set(value):
+		ik_enabled = value
+		renik_foot.enable_left_foot_placement = value
+		renik_foot.enable_right_foot_placement = value
+		renik_foot.enable_hip_placement = value
 
 func _ready() -> void:
-	# Attempt to load OpenXR
+	# Attempt to load OpenXR.
 	xr_interface = XRServer.find_interface("OpenXR")
 	if xr_interface and xr_interface.is_initialized():
 		print("OpenXR initialized")
@@ -57,13 +73,14 @@ func _ready() -> void:
 	else:
 		print("No OpenXR found")
 		xr_interface = null
+	# Load test avatar.
+	load_avatar("res://avatars/Godette.tscn")
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-			head.rotate_y(event.relative.x * LOOK_SPEED)
+			rotate_y(event.relative.x * LOOK_SPEED)
 			head.rotate_x(event.relative.y * LOOK_SPEED)
-			head.rotation.z = 0
 	elif event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -79,14 +96,15 @@ func _process(_delta: float) -> void:
 	elif diff > MAX_NECK_ROTATION:
 		targets.rotate_y(-diff + MAX_NECK_ROTATION)
 	# Place hip in-between head and root of player.
-	hips.global_position = head.global_position
+	hips.global_position = head_target.global_position
 	hips.global_position.y = lerpf(
 		global_position.y,
 		head.global_position.y,
 		0.618,
 	)
 	# Update the IK.
-	renik.update_ik()
+	if ik_enabled:
+		renik.update_ik()
 
 func _jump_pressed() -> bool:
 	if using_xr:
@@ -146,3 +164,70 @@ func _physics_process(delta: float) -> void:
 	_handle_turning(delta)
 	_handle_sitting()
 	move_and_slide()
+
+## Load an avatar from a scene path.
+func load_avatar(path: String) -> void:
+	# Get the scene.
+	var scn := load(path)
+	if not (scn is PackedScene):
+		push_warning("Could not load scene ", path)
+		return
+	# Instantiate the scene.
+	var new_avatar = scn.instantiate()
+	# Check that it is an avatar descriptor.
+	if not (new_avatar is AvatarDescriptor):
+		push_warning("Avatar is missing descriptor")
+		return
+	# Replace the avatar.
+	if avatar != null:
+		avatar.queue_free()
+	avatar = new_avatar
+	add_child(avatar)
+	# Read the descriptor and set values appropriately.
+	var skeleton := avatar.get_node_or_null(avatar.skeleton)
+	if skeleton == null:
+		push_warning("No skeleton set, IK will not run.")
+		ik_enabled = false
+	else:
+		# Adjust head target based on neck and head offset.
+		head_target.position = skeleton.get_bone_global_pose(skeleton.find_bone(avatar.bone_head)).origin - avatar.viewpoint
+		head_target.position.z = -head_target.position.z
+
+		renik.armature_skeleton_path = renik.get_path_to(skeleton)
+		renik.armature_head = avatar.bone_head
+		renik.armature_left_hand = avatar.bone_left_hand
+		renik.armature_left_lower_arm = avatar.bone_left_lower_arm
+		renik.armature_left_upper_arm = avatar.bone_left_upper_arm
+		renik.armature_right_hand = avatar.bone_right_hand
+		renik.armature_right_lower_arm = avatar.bone_right_lower_arm
+		renik.armature_right_upper_arm = avatar.bone_right_upper_arm
+		renik.armature_hip = avatar.bone_hips
+		renik.armature_left_foot = avatar.bone_left_foot
+		renik.armature_left_lower_leg = avatar.bone_left_lower_leg
+		renik.armature_left_upper_leg = avatar.bone_left_upper_leg
+		renik.armature_right_foot = avatar.bone_right_foot
+		renik.armature_right_lower_leg = avatar.bone_right_lower_leg
+		renik.armature_right_upper_leg = avatar.bone_right_upper_leg
+		renik.update_skeleton()
+
+		renik_foot.armature_skeleton_path = renik_foot.get_path_to(skeleton)
+		renik_foot.armature_head = avatar.bone_head
+		renik_foot.armature_hip = avatar.bone_hips
+		renik_foot.armature_left_foot = avatar.bone_left_foot
+		renik_foot.armature_left_lower_leg = avatar.bone_left_lower_leg
+		renik_foot.armature_left_upper_leg = avatar.bone_left_upper_leg
+		renik_foot.armature_right_foot = avatar.bone_right_foot
+		renik_foot.armature_right_lower_leg = avatar.bone_right_lower_leg
+		renik_foot.armature_right_upper_leg = avatar.bone_right_upper_leg
+		renik_foot.update_skeleton()
+
+		capsule.shape.height = avatar.height
+		capsule.shape.radius = avatar.radius
+		capsule.position.y = avatar.height * 0.5
+
+		# Scale 3D view based on ratio between avatar's height and user's height
+		var scale_ratio: float = avatar.viewpoint.y / 1.6
+		origin.scale = Vector3(scale_ratio, scale_ratio, scale_ratio)
+		targets.scale = Vector3(scale_ratio, scale_ratio, scale_ratio)
+
+		ik_enabled = true

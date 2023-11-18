@@ -41,8 +41,8 @@ func get_stick() -> Vector2:
 	# Get the raw input.
 	var vec := get_vector2("primary")
 	# Apply the deadzone.
-	vec.x = _apply_deadzone(vec.x)
-	vec.y = _apply_deadzone(vec.y)
+	vec.x = HandController._apply_deadzone(vec.x)
+	vec.y = HandController._apply_deadzone(vec.y)
 	return vec
 
 func _process(_delta: float) -> void:
