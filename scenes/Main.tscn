@@ -1,6 +1,30 @@
-[gd_scene load_steps=2 format=3 uid="uid://bvd2m3i7jc8p5"]
+[gd_scene load_steps=11 format=3 uid="uid://bvd2m3i7jc8p5"]
 
 [ext_resource type="PackedScene" uid="uid://krsf0ydkh1a3" path="res://scenes/player/Player.tscn" id="2_5xeu0"]
+[ext_resource type="Script" path="res://addons/Mirror/Mirror/Mirror.gd" id="2_fud7v"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_2rhuv"]
+
+[sub_resource type="Sky" id="Sky_j6ecv"]
+sky_material = SubResource("ProceduralSkyMaterial_2rhuv")
+
+[sub_resource type="Environment" id="Environment_2ve3c"]
+background_mode = 2
+sky = SubResource("Sky_j6ecv")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_m6xnw"]
+size = Vector2(20, 20)
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_omf7r"]
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_nk2ew"]
+noise = SubResource("FastNoiseLite_omf7r")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_f3cu6"]
+albedo_texture = SubResource("NoiseTexture2D_nk2ew")
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_8xt46"]
+size = Vector3(20, 1, 20)
 
 [node name="Main" type="Node3D"]
 
@@ -8,5 +32,23 @@
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.639739, -0.412226, 0.648694, -0.51714, 0.39352, 0.760072, -0.568595, -0.821713, 0.0385713, 0, 0, 0)
+shadow_enabled = true
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_2ve3c")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_m6xnw")
+surface_material_override/0 = SubResource("StandardMaterial3D_f3cu6")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="MeshInstance3D"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="MeshInstance3D/StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+shape = SubResource("BoxShape3D_8xt46")
+
+[node name="Mirror" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -10)
+script = ExtResource("2_fud7v")
+size = Vector2(10, 2)
+ResolutionPerUnit = 256
